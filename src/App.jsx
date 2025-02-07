@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { ARButton } from "three/examples/jsm/webxr/ARButton";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 
 export default function App() {
   const mountRef = useRef(null);
@@ -9,6 +10,8 @@ export default function App() {
   useEffect(() => {
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 100);
+    camera.position.set(0, 1, 3);
+    
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.xr.enabled = true;
@@ -18,14 +21,18 @@ export default function App() {
       mountRef.current.appendChild(ARButton.createButton(renderer));
     }
 
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+
     const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
     scene.add(light);
     
     const loader = new GLTFLoader();
     let model;
-    loader.load("https://modelviewer.dev/shared-assets/models/Astronaut.glb", (gltf) => {
+    loader.load("/model.glb", (gltf) => {
       model = gltf.scene;
       model.scale.set(0.5, 0.5, 0.5);
+      model.position.set(0, 0, 0);
       scene.add(model);
     });
     
@@ -59,7 +66,10 @@ export default function App() {
       renderer.render(scene, camera);
     }
 
-    renderer.setAnimationLoop(onXRFrame);
+    renderer.setAnimationLoop(() => {
+      controls.update();
+      renderer.render(scene, camera);
+    });
 
     // Resize handling
     const handleResize = () => {
