@@ -1,26 +1,29 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { ARButton } from "three/examples/jsm/webxr/ARButton";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
 
 export default function App() {
+  const mountRef = useRef(null);
+
   useEffect(() => {
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 100);
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.xr.enabled = true;
-    document.body.appendChild(renderer.domElement);
     
-    // AR Button
-    document.body.appendChild(ARButton.createButton(renderer));
+    if (mountRef.current) {
+      mountRef.current.appendChild(renderer.domElement);
+      mountRef.current.appendChild(ARButton.createButton(renderer));
+    }
 
     const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
     scene.add(light);
     
     const loader = new GLTFLoader();
     let model;
-    loader.load("/model.glb", (gltf) => {
+    loader.load("https://modelviewer.dev/shared-assets/models/Astronaut.glb", (gltf) => {
       model = gltf.scene;
       model.scale.set(0.5, 0.5, 0.5);
       scene.add(model);
@@ -34,7 +37,7 @@ export default function App() {
       let session = renderer.xr.getSession();
       let referenceSpace = renderer.xr.getReferenceSpace();
       
-      if (hitTestSourceRequested === false) {
+      if (!hitTestSourceRequested) {
         session.requestReferenceSpace("viewer").then((refSpace) => {
           session.requestHitTestSource({ space: refSpace }).then((source) => {
             hitTestSource = source;
@@ -59,13 +62,20 @@ export default function App() {
     renderer.setAnimationLoop(onXRFrame);
 
     // Resize handling
-    window.addEventListener("resize", () => {
+    const handleResize = () => {
       camera.aspect = window.innerWidth / window.innerHeight;
       camera.updateProjectionMatrix();
       renderer.setSize(window.innerWidth, window.innerHeight);
-    });
+    };
+    window.addEventListener("resize", handleResize);
 
+    return () => {
+      window.removeEventListener("resize", handleResize);
+      if (mountRef.current && renderer.domElement) {
+        mountRef.current.removeChild(renderer.domElement);
+      }
+    };
   }, []);
 
-  return null;
+  return <div ref={mountRef} style={{ width: "100vw", height: "100vh" }} />;
 }
